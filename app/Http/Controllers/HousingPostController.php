@@ -49,36 +49,60 @@ class HousingPostController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'location' => 'required|string|max:255',
-            'rent_amount' => 'required|numeric|min:0',
-            'bedrooms' => 'required|integer|min:0',
-            'bathrooms' => 'required|numeric|min:0',
-            'description' => 'required|string',
-            'contact_phone' => 'nullable|string|max:20',
-            'property_type' => 'required|string|max:50',
-            'utilities_included' => 'boolean',
-            'available_from' => 'required|date',
-            'photos' => 'nullable|array|max:10',
-            'photos.*' => 'image|max:5120', // 5MB per image
-        ]);
+        // Debug the incoming request
+        \Log::info('Housing Post Store Request: ' . json_encode($request->all()));
         
-        // Set default values
-        $validated['user_id'] = Auth::id();
-        $validated['is_available'] = true;
-        $validated['utilities_included'] = isset($validated['utilities_included']);
-        
-        // Create the housing post
-        $post = HousingPost::create($validated);
-        
-        // Handle photo uploads
-        if ($request->hasFile('photos')) {
-            $this->handlePhotoUploads($request->file('photos'), $post);
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'location' => 'required|string|max:255',
+                'rent_amount' => 'required|numeric|min:0',
+                'bedrooms' => 'required|integer|min:0',
+                'bathrooms' => 'required|numeric|min:0',
+                'description' => 'required|string',
+                'contact_phone' => 'nullable|string|max:20',
+                'property_type' => 'required|string|max:50',
+                'utilities_included' => 'boolean',
+                'available_from' => 'required|date',
+                'photos' => 'nullable|array|max:10',
+                'photos.*' => 'image|max:5120', // 5MB per image
+            ]);
+            
+            // Debug validation success
+            \Log::info('Validation passed. Preparing to save housing post.');
+            
+            // Set default values
+            $validated['user_id'] = Auth::id();
+            $validated['is_available'] = true;
+            $validated['utilities_included'] = isset($validated['utilities_included']);
+            
+            // Debug the data being saved
+            \Log::info('Saving post with data: ' . json_encode($validated));
+            
+            // Create the housing post
+            $post = HousingPost::create($validated);
+            
+            // Debug successful creation
+            \Log::info('Housing post created successfully with ID: ' . $post->id);
+            
+            // Handle photo uploads
+            if ($request->hasFile('photos')) {
+                \Log::info('Processing ' . count($request->file('photos')) . ' photos.');
+                $this->handlePhotoUploads($request->file('photos'), $post);
+            } else {
+                \Log::info('No photos to upload.');
+            }
+            
+            return redirect()->route('housing.my-posts')
+                ->with('success', 'Housing listing created successfully.');
+                
+        } catch (\Exception $e) {
+            // Log the exception for debugging
+            \Log::error('Error creating housing post: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+            
+            return back()->withInput()->with('error', 'There was a problem creating your housing post: ' . $e->getMessage());
         }
-        
-        return redirect()->route('housing.my-posts')
-            ->with('success', 'Housing listing created successfully.');
     }
 
     /**
@@ -86,20 +110,20 @@ class HousingPostController extends Controller
      */
     public function show($id)
     {
-        $post = HousingPost::with(['user', 'photos', 'approvedReviews.user'])
+        $housingPost = HousingPost::with(['user', 'photos', 'approvedReviews.user'])
             ->findOrFail($id);
             
         // Check if current user has already reviewed this property
         $userHasReviewed = false;
         
         if (Auth::check()) {
-            $userHasReviewed = $post->reviews()
+            $userHasReviewed = $housingPost->reviews()
                 ->where('user_id', Auth::id())
                 ->exists();
         }
         
         return view('housing.show', [
-            'post' => $post,
+            'housingPost' => $housingPost,
             'userHasReviewed' => $userHasReviewed
         ]);
     }
@@ -109,15 +133,15 @@ class HousingPostController extends Controller
      */
     public function edit($id)
     {
-        $post = HousingPost::with('photos')->findOrFail($id);
+        $housingPost = HousingPost::with('photos')->findOrFail($id);
         
         // Check if current user owns this post
-        if ($post->user_id !== Auth::id()) {
+        if ($housingPost->user_id !== Auth::id()) {
             abort(403, 'You cannot edit someone else\'s housing post.');
         }
         
         return view('housing.edit', [
-            'post' => $post
+            'housingPost' => $housingPost
         ]);
     }
 
@@ -231,6 +255,32 @@ class HousingPostController extends Controller
         
         return view('housing.matches', [
             'matches' => $matches
+        ]);
+    }
+
+    /**
+     * Toggle the availability status of a housing post.
+     */
+    public function toggleStatus($id)
+    {
+        $post = HousingPost::findOrFail($id);
+        
+        // Check if current user owns this post
+        if ($post->user_id !== Auth::id() && !Auth::user()->is_admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot modify someone else\'s housing post.'
+            ], 403);
+        }
+        
+        // Toggle the status
+        $post->is_available = !$post->is_available;
+        $post->save();
+        
+        return response()->json([
+            'success' => true,
+            'is_available' => $post->is_available,
+            'message' => $post->is_available ? 'Post marked as available.' : 'Post marked as not available.'
         ]);
     }
 

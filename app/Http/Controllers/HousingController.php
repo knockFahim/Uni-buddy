@@ -3,15 +3,33 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\HousingPost;
+use Illuminate\Support\Facades\Auth;
 
 class HousingController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $filters = $request->only([
+            'min_price', 'max_price', 'property_type', 'bedrooms',
+            'bathrooms', 'location', 'available_from', 'utilities_included'
+        ]);
+        
+        $posts = HousingPost::with(['user', 'photos' => function($query) {
+            $query->where('is_primary', true);
+        }])
+        ->filter($filters)
+        ->available()
+        ->latest()
+        ->paginate(10);
+        
+        return view('housing.index', [
+            'posts' => $posts,
+            'filters' => $filters
+        ]);
     }
 
     /**
@@ -35,7 +53,22 @@ class HousingController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $housingPost = HousingPost::with(['user', 'photos', 'approvedReviews.user'])
+            ->findOrFail($id);
+            
+        // Check if current user has already reviewed this property
+        $userHasReviewed = false;
+        
+        if (Auth::check()) {
+            $userHasReviewed = $housingPost->reviews()
+                ->where('user_id', Auth::id())
+                ->exists();
+        }
+        
+        return view('housing.show', [
+            'housingPost' => $housingPost,
+            'userHasReviewed' => $userHasReviewed
+        ]);
     }
 
     /**

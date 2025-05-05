@@ -51,30 +51,41 @@ class HousingReviewController extends Controller
         
         // Validate input
         $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
             'cleanliness_rating' => 'required|integer|min:1|max:5',
             'location_rating' => 'required|integer|min:1|max:5',
             'value_rating' => 'required|integer|min:1|max:5',
             'landlord_rating' => 'required|integer|min:1|max:5',
-            'comment' => 'required|string|min:10|max:1000',
-            'pros' => 'nullable|string|max:500',
-            'cons' => 'nullable|string|max:500',
-            'duration_of_stay' => 'required|string|in:less_than_month,1_6_months,6_12_months,1_2_years,more_than_2_years',
+            'safety_rating' => 'required|integer|min:1|max:5',
+            'review_text' => 'required|string|min:10|max:1000',
+            'anonymous' => 'boolean',
+            'stay_start_date' => 'nullable|date',
+            'stay_end_date' => 'nullable|date|after_or_equal:stay_start_date',
         ]);
+        
+        // Calculate overall rating
+        $ratings = [
+            $validated['cleanliness_rating'],
+            $validated['location_rating'],
+            $validated['value_rating'],
+            $validated['landlord_rating'],
+            $validated['safety_rating']
+        ];
+        $overallRating = round(array_sum($ratings) / count($ratings), 1);
         
         // Create review
         $review = new HousingReview([
             'housing_post_id' => $housingId,
             'user_id' => Auth::id(),
-            'rating' => $validated['rating'],
             'cleanliness_rating' => $validated['cleanliness_rating'],
             'location_rating' => $validated['location_rating'],
             'value_rating' => $validated['value_rating'],
             'landlord_rating' => $validated['landlord_rating'],
-            'comment' => $validated['comment'],
-            'pros' => $validated['pros'] ?? null,
-            'cons' => $validated['cons'] ?? null,
-            'duration_of_stay' => $validated['duration_of_stay'],
+            'safety_rating' => $validated['safety_rating'],
+            'overall_rating' => $overallRating,
+            'review_text' => $validated['review_text'],
+            'anonymous' => isset($validated['anonymous']),
+            'stay_start_date' => $validated['stay_start_date'] ?? null,
+            'stay_end_date' => $validated['stay_end_date'] ?? null,
             'is_approved' => false, // Require moderation for reviews
             'helpful_votes' => 0,
             'unhelpful_votes' => 0,
@@ -89,12 +100,36 @@ class HousingReviewController extends Controller
     /**
      * Show the form for editing a review.
      */
-    public function edit($reviewId)
+    public function edit($housingId, $reviewId)
+    {
+        $review = HousingReview::findOrFail($reviewId);
+        
+        // Check if review belongs to the right housing post
+        if ($review->housing_post_id != $housingId) {
+            abort(404, 'Review not found for this housing post.');
+        }
+        
+        // Check if current user owns this review
+        if ($review->user_id !== Auth::id()) {
+            abort(403, 'You cannot edit someone else\'s review.');
+        }
+        
+        return view('housing.reviews.edit', [
+            'review' => $review,
+            'housingPost' => $review->housingPost,
+        ]);
+    }
+
+    /**
+     * Show the form for editing a review (alternate URL pattern).
+     * This handles the /housing/reviews/{id}/edit URL pattern.
+     */
+    public function editReview($reviewId)
     {
         $review = HousingReview::findOrFail($reviewId);
         
         // Check if current user owns this review
-        if ($review->user_id !== Auth::id()) {
+        if ($review->user_id !== Auth::id() && !Auth::user()->is_admin) {
             abort(403, 'You cannot edit someone else\'s review.');
         }
         
@@ -203,7 +238,7 @@ class HousingReviewController extends Controller
             abort(403, 'Unauthorized');
         }
         
-        $pendingReviews = HousingReview::with(['user', 'housing'])
+        $pendingReviews = HousingReview::with(['user', 'housingPost'])
             ->where('is_approved', false)
             ->orderBy('created_at')
             ->paginate(20);
@@ -257,7 +292,7 @@ class HousingReviewController extends Controller
      */
     public function userReviews()
     {
-        $reviews = HousingReview::with('housing')
+        $reviews = HousingReview::with('housingPost')
             ->where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get();

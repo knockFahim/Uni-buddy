@@ -118,7 +118,7 @@
                             <span><?= htmlspecialchars($post->user->name) ?></span>
                             <span class="mx-2">•</span>
                             <i class="fas fa-calendar text-gray-500 mr-1"></i>
-                            <span>From <?= $post->available_from->format('M d, Y') ?></span>
+                            <span>Available <?= $post->available_from->format('M d, Y') ?></span>
                         </div>
                         
                         <div class="mb-3 flex items-center text-gray-600">

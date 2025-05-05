@@ -41,7 +41,7 @@
     <?php endif; ?>
 
     <!-- Housing Posts Dashboard -->
-    <?php if(count($housingPosts) > 0): ?>
+    <?php if(count($posts) > 0): ?>
         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
             <!-- Dashboard Stats -->
             <div class="bg-gray-50 p-6 border-b">
@@ -50,7 +50,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Total Posts</p>
-                                <p class="text-2xl font-bold text-gray-800"><?= count($housingPosts) ?></p>
+                                <p class="text-2xl font-bold text-gray-800"><?= count($posts) ?></p>
                             </div>
                             <div class="bg-indigo-100 p-3 rounded-full">
                                 <i class="fas fa-list text-indigo-600"></i>
@@ -63,7 +63,7 @@
                             <div>
                                 <p class="text-sm text-gray-500">Active Listings</p>
                                 <p class="text-2xl font-bold text-green-600">
-                                    <?= count(array_filter($housingPosts->toArray(), function($post) { return $post['is_available']; })) ?>
+                                    <?= count(array_filter($posts->toArray(), function($post) { return $post['is_available']; })) ?>
                                 </p>
                             </div>
                             <div class="bg-green-100 p-3 rounded-full">
@@ -77,7 +77,7 @@
                             <div>
                                 <p class="text-sm text-gray-500">Inactive Listings</p>
                                 <p class="text-2xl font-bold text-red-600">
-                                    <?= count(array_filter($housingPosts->toArray(), function($post) { return !$post['is_available']; })) ?>
+                                    <?= count(array_filter($posts->toArray(), function($post) { return !$post['is_available']; })) ?>
                                 </p>
                             </div>
                             <div class="bg-red-100 p-3 rounded-full">
@@ -101,7 +101,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        <?php foreach ($housingPosts as $post): ?>
+                        <?php foreach ($posts as $post): ?>
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center">
@@ -137,16 +137,16 @@
                                 <td class="px-6 py-4 text-sm font-medium">
                                     <div class="text-green-600">$<?= number_format($post->rent_amount, 0) ?>/mo</div>
                                     <div class="text-xs text-gray-500">
-                                        From <?= $post->available_from->format('M j, Y') ?>
+                                        Available <?= $post->available_from->format('M d, Y') ?>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <?php if ($post->is_available): ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 flex items-center w-fit">
+                                        <span data-post-id="<?= $post->id ?>" class="status-toggle px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 flex items-center w-fit cursor-pointer hover:bg-green-200 transition-colors">
                                             <i class="fas fa-circle text-xs mr-1"></i>Available
                                         </span>
                                     <?php else: ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 flex items-center w-fit">
+                                        <span data-post-id="<?= $post->id ?>" class="status-toggle px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 flex items-center w-fit cursor-pointer hover:bg-red-200 transition-colors">
                                             <i class="fas fa-circle text-xs mr-1"></i>Not Available
                                         </span>
                                     <?php endif; ?>
@@ -188,3 +188,128 @@
 </div>
 
 <?php include(__DIR__ . '/../partials/tail.php'); ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get all status toggle elements
+    const statusToggles = document.querySelectorAll('.status-toggle');
+    
+    statusToggles.forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const postId = this.getAttribute('data-post-id');
+            const statusIndicator = this;
+            
+            // Show a loading state
+            const originalContent = statusIndicator.innerHTML;
+            statusIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+            statusIndicator.classList.add('opacity-50');
+            statusIndicator.style.pointerEvents = 'none';
+            
+            // Get CSRF token - this is more reliable
+            const csrfToken = document.querySelector('input[name="_token"]')?.value || 
+                             document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Create a FormData object to match Laravel's expected format
+            const formData = new FormData();
+            formData.append('_token', csrfToken);
+            
+            // Make the AJAX request to toggle status
+            fetch(`/housing/${postId}/toggle-status`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update the status indicator appearance
+                    if (data.is_available) {
+                        statusIndicator.classList.remove('bg-red-100', 'text-red-800');
+                        statusIndicator.classList.add('bg-green-100', 'text-green-800');
+                        statusIndicator.innerHTML = '<i class="fas fa-circle text-xs mr-1"></i>Available';
+                    } else {
+                        statusIndicator.classList.remove('bg-green-100', 'text-green-800');
+                        statusIndicator.classList.add('bg-red-100', 'text-red-800');
+                        statusIndicator.innerHTML = '<i class="fas fa-circle text-xs mr-1"></i>Not Available';
+                    }
+                    
+                    // Update the dashboard statistics
+                    updateDashboardStats();
+                    
+                    // Show a brief success notification
+                    showNotification(data.message, 'success');
+                } else {
+                    // Restore original content and show an error
+                    statusIndicator.innerHTML = originalContent;
+                    showNotification('Failed to update status: ' + (data.message || 'Unknown error'), 'error');
+                }
+                
+                // Re-enable clicking
+                statusIndicator.classList.remove('opacity-50');
+                statusIndicator.style.pointerEvents = 'auto';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusIndicator.innerHTML = originalContent;
+                statusIndicator.classList.remove('opacity-50');
+                statusIndicator.style.pointerEvents = 'auto';
+                showNotification('An error occurred while updating status. Please try again.', 'error');
+            });
+        });
+    });
+    
+    // Function to update dashboard statistics
+    function updateDashboardStats() {
+        const availableCount = document.querySelectorAll('.status-toggle.bg-green-100').length;
+        const unavailableCount = document.querySelectorAll('.status-toggle.bg-red-100').length;
+        
+        // Update the stats in the dashboard
+        const activeStatsElement = document.querySelector('.bg-white:nth-child(2) .text-2xl.font-bold.text-green-600');
+        const inactiveStatsElement = document.querySelector('.bg-white:nth-child(3) .text-2xl.font-bold.text-red-600');
+        
+        if (activeStatsElement) activeStatsElement.textContent = availableCount;
+        if (inactiveStatsElement) inactiveStatsElement.textContent = unavailableCount;
+    }
+    
+    // Function to show notification
+    function showNotification(message, type) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = type === 'success' 
+            ? 'fixed top-5 right-5 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg z-50'
+            : 'fixed top-5 right-5 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg z-50';
+        
+        // Add icon based on type
+        const iconClass = type === 'success' ? 'fa-check-circle text-green-500' : 'fa-exclamation-circle text-red-500';
+        
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas ${iconClass} mr-2"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        // Append to body
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.5s ease';
+            
+            // Remove from DOM after fade out
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 500);
+        }, 3000);
+    }
+});
+</script>

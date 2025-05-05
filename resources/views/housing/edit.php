@@ -112,7 +112,8 @@
                 <!-- Status Options -->
                 <div class="bg-gray-50 p-5 rounded-lg space-y-3">
                     <div class="flex items-center">
-                        <input type="checkbox" name="utilities_included" id="utilities_included" <?= $housingPost->utilities_included ? 'checked' : '' ?> class="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 rounded transition-colors">
+                        <input type="hidden" name="utilities_included" value="0">
+                        <input type="checkbox" name="utilities_included" id="utilities_included" value="1" <?= $housingPost->utilities_included ? 'checked' : '' ?> class="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 rounded transition-colors">
                         <label for="utilities_included" class="font-semibold text-gray-800 flex items-center">
                             <i class="fas fa-bolt text-indigo-600 mr-2"></i>Utilities included in rent
                         </label>
@@ -120,7 +121,8 @@
                     
                     <div class="border-t border-gray-200 pt-3">
                         <div class="flex items-center">
-                            <input type="checkbox" name="is_available" id="is_available" <?= $housingPost->is_available ? 'checked' : '' ?> class="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 rounded transition-colors">
+                            <input type="hidden" name="is_available" value="0">
+                            <input type="checkbox" name="is_available" id="is_available" value="1" <?= $housingPost->is_available ? 'checked' : '' ?> class="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 rounded transition-colors">
                             <label for="is_available" class="font-semibold text-gray-800 flex items-center">
                                 <i class="fas fa-check-circle text-green-600 mr-2"></i>This property is still available
                             </label>

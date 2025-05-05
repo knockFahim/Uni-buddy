@@ -231,4 +231,4 @@
     });
 </script>
 
-<?php include(__DIR__ . '/../../partials/footer.php'); ?>
+<?php include(__DIR__ . '/../../partials/tail.php'); ?>

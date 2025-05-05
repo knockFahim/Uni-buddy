@@ -22,6 +22,12 @@
                 <!-- Mobile Menu -->
                 <div x-show="open" @click.outside="open = false" class="absolute top-16 right-0 left-0 bg-indigo-900 shadow-lg p-4">
                     <?php if (Auth::check()): ?>
+                        <?php if (Auth::user()->is_admin): ?>
+                            <a href="/admin" class="block py-2 text-yellow-400 hover:text-yellow-300 font-semibold">
+                                <i class="fas fa-cog mr-1"></i>Admin Dashboard
+                            </a>
+                            <div class="border-t border-indigo-700 my-2"></div>
+                        <?php endif; ?>
                         <a href="/thesis" class="block py-2 text-white hover:text-yellow-300">Thesis Dashboard</a>
                         <a href="/thesis/create" class="block py-2 text-white hover:text-yellow-300">Create Thesis Post</a>
                         <a href="/thesis/my-posts" class="block py-2 text-white hover:text-yellow-300">My Thesis Posts</a>
@@ -48,6 +54,11 @@
             <!-- Desktop Navigation Links -->
             <div class="hidden md:flex space-x-6 items-center">
                 <?php if (Auth::check()): ?>
+                    <?php if (Auth::user()->is_admin): ?>
+                        <a href="/admin" class="flex items-center px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors">
+                            <i class="fas fa-cog mr-1"></i>Admin
+                        </a>
+                    <?php endif; ?>
                     <div class="relative group" x-data="{ open: false }">
                         <button @click="open = !open" class="flex items-center space-x-1 hover:text-yellow-300 transition">
                             <i class="fas fa-book-open mr-1"></i>

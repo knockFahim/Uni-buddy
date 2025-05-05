@@ -22,7 +22,7 @@
         </div>
     
         <div class="p-6 md:p-8">
-            <form action="/housing" method="POST" class="space-y-6" x-data="{ showHelp: false }">
+            <form action="/housing" method="POST" enctype="multipart/form-data" class="space-y-6" x-data="{ showHelp: false }">
                 <?= csrf_field() ?>
                 
                 <!-- Form Tips -->
@@ -132,7 +132,8 @@
                 <!-- Utilities Field -->
                 <div class="bg-gray-50 p-4 rounded-lg">
                     <div class="flex items-center mb-1">
-                        <input type="checkbox" name="utilities_included" id="utilities_included" class="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 rounded transition-colors">
+                        <input type="hidden" name="utilities_included" value="0">
+                        <input type="checkbox" name="utilities_included" id="utilities_included" value="1" class="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 rounded transition-colors">
                         <label for="utilities_included" class="font-semibold text-gray-800 flex items-center">
                             <i class="fas fa-bolt text-indigo-600 mr-2"></i>Utilities included in rent
                         </label>
@@ -147,6 +148,16 @@
                     </label>
                     <textarea name="description" rows="5" placeholder="Describe the property, amenities, rules, etc." 
                         class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500 focus:outline-none transition-colors" required></textarea>
+                </div>
+                
+                <!-- Photos Field -->
+                <div>
+                    <label class="block font-semibold text-gray-800 mb-2 flex items-center">
+                        <i class="fas fa-images text-indigo-600 mr-2"></i>Property Photos
+                    </label>
+                    <input type="file" name="photos[]" accept="image/*" multiple 
+                        class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500 focus:outline-none transition-colors">
+                    <p class="text-sm text-gray-500 mt-1">Upload up to 10 photos (5MB max per photo)</p>
                 </div>
                 
                 <!-- Submit Button -->
